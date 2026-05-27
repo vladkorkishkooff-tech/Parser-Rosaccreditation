@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Iterable
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.utils import get_column_letter
 
 from .models import LookupResult
 from .normalization import normalize_number
@@ -22,6 +23,19 @@ OUTPUT_FIELDS = [
     "status",
     "error",
 ]
+
+HEADER_MAP = {
+    "input_number": "Входной номер",
+    "registry_type": "Тип документа",
+    "registry_number": "Номер в реестре",
+    "id": "Системный ID",
+    "url": "Ссылка на карточку",
+    "reg_date": "Дата регистрации",
+    "end_date": "Дата окончания действия",
+    "status_id": "Код статуса",
+    "status": "Статус",
+    "error": "Ошибка",
+}
 
 
 def read_numbers(path: Path) -> list[str]:
@@ -95,18 +109,35 @@ def _read_xlsx_numbers(path: Path) -> list[str]:
 
 def _write_csv(path: Path, results: Iterable[LookupResult]) -> None:
     with path.open("w", encoding="utf-8-sig", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=OUTPUT_FIELDS)
-        writer.writeheader()
+        headers = [HEADER_MAP.get(field, field) for field in OUTPUT_FIELDS]
+        writer = csv.writer(file)
+        writer.writerow(headers)
         for result in results:
-            writer.writerow(result.to_row())
+            row = result.to_row()
+            writer.writerow([row[field] for field in OUTPUT_FIELDS])
 
 
 def _write_xlsx(path: Path, results: Iterable[LookupResult]) -> None:
     workbook = Workbook()
     worksheet = workbook.active
     worksheet.title = "results"
-    worksheet.append(OUTPUT_FIELDS)
+    
+    headers = [HEADER_MAP.get(field, field) for field in OUTPUT_FIELDS]
+    worksheet.append(headers)
+    
     for result in results:
         row = result.to_row()
         worksheet.append([row[field] for field in OUTPUT_FIELDS])
+        
+    # Auto-fit columns
+    for col in worksheet.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            val = str(cell.value or "")
+            if len(val) > max_len:
+                max_len = len(val)
+        # Add padding
+        worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
+        
     workbook.save(path)
