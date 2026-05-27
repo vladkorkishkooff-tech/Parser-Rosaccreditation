@@ -55,6 +55,104 @@ class FsaClient:
         except Exception as exc:
             return LookupResult(input_number=normalized, registry_type="error", error=str(exc))
 
+    async def get_latest_certificates(self, limit: int = 50) -> list[LookupResult]:
+        payload = {
+            "size": limit,
+            "page": 0,
+            "filter": {
+                "idCertScheme": [],
+                "regDate": {"startDate": None, "endDate": None},
+                "endDate": {"startDate": None, "endDate": None},
+                "columnsSearch": [],
+            },
+            "columnsSort": [{"column": "date", "sort": "DESC"}],
+        }
+        data = await self._post_json(CERTIFICATE_SEARCH_URL, payload, referer=f"{BASE_URL}/rss/certificate")
+        items = data.get("items") or []
+
+        results = []
+        for item in items:
+            item_id = str(item.get("id") or "")
+            url = f"{BASE_URL}/rss/certificate/view/{item_id}/baseInfo"
+            reg_date = item.get("date") or ""
+            end_date = item.get("endDate") or ""
+            status_id = str(item.get("idStatus") or "")
+            status = STATUS_MAP.get(status_id, f"Неизвестный ({status_id})" if status_id else "")
+
+            results.append(
+                LookupResult(
+                    input_number="",
+                    registry_type="certificate",
+                    registry_number=normalize_number(item.get("number")),
+                    id=item_id,
+                    url=url,
+                    reg_date=str(reg_date or ""),
+                    end_date=str(end_date or ""),
+                    status_id=status_id,
+                    status=status,
+                )
+            )
+        return results
+
+    async def get_latest_declarations(self, limit: int = 50) -> list[LookupResult]:
+        payload = {
+            "size": limit,
+            "page": 0,
+            "count": 0,
+            "filter": {
+                "status": [],
+                "idDeclType": [],
+                "idCertObjectType": [],
+                "idProductType": [],
+                "idGroupRU": [],
+                "idGroupEEU": [],
+                "idTechReg": [],
+                "idApplicantType": [],
+                "regDate": {"minDate": None, "maxDate": None},
+                "endDate": {"minDate": None, "maxDate": None},
+                "columnsSearch": [],
+                "idProductOrigin": [],
+                "idProductEEU": [],
+                "idProductRU": [],
+                "idDeclScheme": [],
+                "awaitOperatorCheck": None,
+                "editApp": None,
+                "violationSendDate": None,
+                "isProtocolInvalid": None,
+                "checkerAIResult": None,
+                "checkerAIProtocolsResults": None,
+                "checkerAIProtocolsMistakes": None,
+                "hiddenFromOpen": None,
+            },
+            "columnsSort": [{"column": "declDate", "sort": "DESC"}],
+        }
+        data = await self._post_json(DECLARATION_SEARCH_URL, payload, referer=f"{BASE_URL}/rds/declaration")
+        items = data.get("items") or []
+
+        results = []
+        for item in items:
+            item_id = str(item.get("id") or "")
+            url = f"{BASE_URL}/rds/declaration/view/{item_id}/common"
+            reg_date = item.get("declDate") or ""
+            end_date = item.get("declEndDate") or ""
+            status_id = str(item.get("idStatus") or "")
+            status = STATUS_MAP.get(status_id, f"Неизвестный ({status_id})" if status_id else "")
+
+            results.append(
+                LookupResult(
+                    input_number="",
+                    registry_type="declaration",
+                    registry_number=normalize_number(item.get("number")),
+                    id=item_id,
+                    url=url,
+                    reg_date=str(reg_date or ""),
+                    end_date=str(end_date or ""),
+                    status_id=status_id,
+                    status=status,
+                )
+            )
+        return results
+
     async def _search_certificates(self, number: str) -> list[dict[str, Any]]:
         payload = {
             "size": 10,

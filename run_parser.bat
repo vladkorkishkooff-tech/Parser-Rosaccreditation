@@ -22,11 +22,12 @@ if not exist ".venv\Scripts\python.exe" (
 
 :: Проверка перетаскивания файла (Drag-and-Drop)
 set "INPUT_FILE=%~1"
+set "LATEST_MODE=N"
 
 if "%INPUT_FILE%"=="" (
     echo [ИНФО] Вы можете просто перетащить ваш Excel/CSV файл мышкой на этот ярлык!
     echo.
-    set /p "INPUT_FILE=Шаг 1: Введите имя или путь к входному файлу (например, test_input.csv): "
+    set /p "INPUT_FILE=Шаг 1: Введите имя файла с номерами (или нажмите ENTER для автосбора последних документов): "
 ) else (
     echo [ИНФО] Обнаружен перетащенный файл: %INPUT_FILE%
 )
@@ -35,19 +36,17 @@ if "%INPUT_FILE%"=="" (
 set "INPUT_FILE=%INPUT_FILE:"=%"
 
 if "%INPUT_FILE%"=="" (
-    color 0e
-    echo [ПРЕДУПРЕЖДЕНИЕ] Имя файла не введено!
-    pause
-    exit /b 1
-)
-
-if not exist "%INPUT_FILE%" (
-    color 0c
-    echo [ОШИБКА] Файл "%INPUT_FILE%" не найден!
-    echo Убедитесь, что файл лежит в этой папке или вы указали правильный путь.
-    echo.
-    pause
-    exit /b 1
+    echo [ИНФО] Входной файл не указан. Запускается режим автоматического сбора последних документов.
+    set "LATEST_MODE=Y"
+) else (
+    if not exist "%INPUT_FILE%" (
+        color 0c
+        echo [ОШИБКА] Файл "%INPUT_FILE%" не найден!
+        echo Убедитесь, что файл лежит в этой папке или вы указали правильный путь.
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
 echo.
@@ -59,14 +58,22 @@ echo.
 echo ==========================================================
 echo       НАЧАЛО РАБОТЫ ПАРСЕРА
 echo ==========================================================
-echo Входной файл:  %INPUT_FILE%
+if "%LATEST_MODE%"=="Y" (
+    echo Режим работы:  Автоматический сбор последних документов (50 серт. + 50 декл.)
+) else (
+    echo Входной файл:  %INPUT_FILE%
+)
 echo Выходной файл: %OUTPUT_FILE%
 echo.
 echo Идет запуск фонового браузера Chromium для авторизации...
 echo Пожалуйста, подождите, парсер делает запросы напрямую к API Росаккредитации...
 echo.
 
-.\.venv\Scripts\python main.py -i "%INPUT_FILE%" -o "%OUTPUT_FILE%"
+if "%LATEST_MODE%"=="Y" (
+    .\.venv\Scripts\python main.py -o "%OUTPUT_FILE%" -l 50
+) else (
+    .\.venv\Scripts\python main.py -i "%INPUT_FILE%" -o "%OUTPUT_FILE%"
+)
 
 if %ERRORLEVEL% equ 0 (
     color 0a
