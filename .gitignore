@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.playwright-mcp/
+result*.csv
+result*.xlsx
+test_input.csv
+test_output*.xlsx
